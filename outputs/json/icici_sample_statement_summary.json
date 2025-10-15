@@ -1,0 +1,15 @@
+{
+    "bank_detected": "ICICI Bank",
+    "card_variant": "ICICI Bank Coral Credit Card",
+    "last4": "3009",
+    "billing_cycle": "21 Jun 2025 to 20 Jul 2025",
+    "statement_date": "20",
+    "payment_due_date": "07",
+    "total_balance": "12530",
+    "minimum_due": "525",
+    "credit_limit": "220000",
+    "available_credit_limit": "Not found",
+    "cash_limit": "22000",
+    "available_cash_limit": "Not found",
+    "transactions_extracted": 5
+}

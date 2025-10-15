@@ -1,0 +1,15 @@
+{
+    "bank_detected": "Bank of Baroda",
+    "card_variant": "Bank of Baroda PRIME Credit Card",
+    "last4": "4321",
+    "billing_cycle": "21 Jul 2025 to 20 Aug 2025",
+    "statement_date": "20",
+    "payment_due_date": "10",
+    "total_balance": "14234",
+    "minimum_due": "2500",
+    "credit_limit": "100000",
+    "available_credit_limit": "Not found",
+    "cash_limit": "20000",
+    "available_cash_limit": "Not found",
+    "transactions_extracted": 5
+}

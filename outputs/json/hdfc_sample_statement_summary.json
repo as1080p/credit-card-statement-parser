@@ -1,0 +1,15 @@
+{
+    "bank_detected": "HDFC Bank",
+    "card_variant": "HDFC Bank Millenia Credit Card",
+    "last4": "1234",
+    "billing_cycle": "01 Sep 2025 to 30 Sep 2025",
+    "statement_date": "30",
+    "payment_due_date": "20",
+    "total_balance": "4523",
+    "minimum_due": "1500",
+    "credit_limit": "100000",
+    "available_credit_limit": "Not found",
+    "cash_limit": "20000",
+    "available_cash_limit": "Not found",
+    "transactions_extracted": 5
+}

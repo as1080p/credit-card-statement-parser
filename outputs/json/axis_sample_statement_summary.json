@@ -1,0 +1,15 @@
+{
+    "bank_detected": "Axis Bank",
+    "card_variant": "Axis Bank ACE Credit Card",
+    "last4": "8342",
+    "billing_cycle": "12 Jul 2025 to 11 Aug 2025",
+    "statement_date": "11",
+    "payment_due_date": "30",
+    "total_balance": "23450.21",
+    "minimum_due": "2000",
+    "credit_limit": "150000",
+    "available_credit_limit": "Not found",
+    "cash_limit": "25000",
+    "available_cash_limit": "Not found",
+    "transactions_extracted": 5
+}

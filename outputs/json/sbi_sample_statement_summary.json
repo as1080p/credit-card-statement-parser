@@ -1,0 +1,15 @@
+{
+    "bank_detected": "State Bank of India",
+    "card_variant": "Easy Credit Card",
+    "last4": "0072",
+    "billing_cycle": "22 Aug 2025 to 21 Sep 2025",
+    "statement_date": "21",
+    "payment_due_date": "11",
+    "total_balance": "34762",
+    "minimum_due": "17626",
+    "credit_limit": "74000",
+    "available_credit_limit": "Not found",
+    "cash_limit": "7400",
+    "available_cash_limit": "Not found",
+    "transactions_extracted": 5
+}

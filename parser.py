@@ -1,184 +1,227 @@
+# parser.py (Enhanced Version with Axis Bank & Output Folders)
 import pdfplumber
 import re
-import pandas as pd
 import json
+import os
+from rapidfuzz import process, fuzz
+import pandas as pd
+from tabulate import tabulate
 
-# -------------------------------------------------
-# STEP 1 — Extract all text and tables
-# -------------------------------------------------
-def extract_text_and_tables(pdf_path):
-    all_text = ""
-    all_tables = []
+# -------------------------
+# bank detection keywords
+# -------------------------
+BANK_KEYWORDS = {
+    "HDFC Bank": ["hdfc bank", "hdfc credit card", "hdfc bank credit"],
+    "ICICI Bank": ["icici bank", "icici credit card"],
+    "State Bank of India": ["sbi card", "state bank of india", "sbi credit card"],
+    "Bank of Baroda": ["bank of baroda", "bob credit card", "baroda credit card"],
+    "Axis Bank": ["axis bank", "axis bank credit card", "axis bank cards"]
+}
+
+# -------------------------
+# card variants (expanded)
+# -------------------------
+CARD_VARIANTS = [
+    # HDFC Variants
+    "Indian Oil HDFC Bank Credit Card", "Marriot Bonvoy HDFC Bank Credit Card", "Freedom Credit Card",
+    "HDFC MoneyBack+ Credit Card", "Swiggy HDFC Bank Credit Card", "HDFC Bank Millenia Credit Card",
+    "Tata Neu Infinity HDFC Bank Credit Card", "HDFC Regalia Gold Credit Card",
+    "HDFC Diners Club Black Metal Edition Credit Card", "Shopper Stop HDFC Bank Credit Card",
+
+    # ICICI Variants
+    "MakeMyTrip ICICI Bank Credit Card", "ICICI Bank Platinum Chip Credit Card",
+    "ICICI Bank Coral Credit Card", "ICICI Bank Rubyx Credit Card", "ICICI Bank Sapphiro Credit Card",
+    "ICICI Bank Chennai Super Kings Credit Card", "ICICI Bank HPCL Coral Visa Credit Card",
+    "Amazon Pay ICICI Bank Credit Card", "ICICI Bank Manchester United Platinum Credit Card",
+    "ICICI Bank Manchester United Signature Credit Card", "ICICI Bank Expressions Credit Card",
+    "ICICI Bank HPCL Super Saver Credit Card", "ICICI Bank Emirates Visa Signature Credit Card",
+    "ICICI Bank Accelero Visa Platinum Credit Card", "ICICI Bank Parakram Credit Card",
+    "ICICI Bank Adani One Platinum Credit Card", "ICICI Bank Adani One Signature Credit Card",
+    "Times Black ICICI Bank Credit Card",
+
+    # SBI Variants
+    "SimplyCLICK SBI Card", "SimplySAVE SBI Card", "BPCL SBI Card", "SBI Card PRIME",
+    "SBI Card ELITE", "Cashback SBI Card", "IRCTC SBI Platinum Card", "SBI Card Miles Elite",
+    "SBI Card PULSE", "Reliance SBI Card",
+
+    # Bank of Baroda Variants
+    "Bank of Baroda Vikram Credit Card", "Indian Coast Guard Rakshamah BoB Credit Card",
+    "IRCTC BoB Credit Card", "Indian Army Yoddha BoB Credit Card", "Indian Navy Varunah BoB Credit Card",
+    "BoB Nainital Bank RENAISSANCE", "HPCL BoB ENERGIE Credit Card", "Snapdeal BoB Credit Card",
+    "Assam Rifles The Sentinel BoB Credit Card", "CMA One Credit Card", "ConQR Credit Card",
+    "Easy Credit Card", "Eterna Credit Card", "ICAI Exclusive Credit Card", "ICSI Diamond Credit Card",
+    "Premier Credit Card", "Select Credit Card", "BoB CORPORATE Credit Card",
+    "Bank of Baroda PRIME Credit Card", "Bank of Baroda EMPOWER Credit Card",
+
+    # Axis Bank Variants (newly added)
+    "Axis Bank ACE Credit Card", "Axis Bank Ace Credit Card", "Flipkart Axis Bank Credit Card",
+    "Axis Bank Neo Credit Card", "Axis Bank My Wings Credit Card", "Axis Bank Select Credit Card",
+    "Axis Bank Vistara Signature Credit Card", "Axis Bank My Zone Credit Card",
+    "Axis Bank Magnus Credit Card", "Axis Bank Reserve Credit Card", "Axis Bank Atlas Credit Card"
+]
+
+# -------------------------
+# helpers
+# -------------------------
+def load_text(pdf_path):
+    text = ""
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
-            all_text += page.extract_text() or ""
-            for table in page.extract_tables():
-                df = pd.DataFrame(table)
-                all_tables.append(df)
-    all_text = re.sub(r"\s+", " ", all_text.strip())
-    return all_text.lower(), all_tables
+            pt = page.extract_text()
+            if pt:
+                text += "\n" + pt
+    return text.strip()
 
+def detect_bank(text):
+    txt = text.lower()
+    for bank, kws in BANK_KEYWORDS.items():
+        for kw in kws:
+            if kw in txt:
+                return bank
+    choices = list(BANK_KEYWORDS.keys())
+    match = process.extractOne(text, choices, scorer=fuzz.partial_ratio)
+    return match[0] if match and match[1] > 70 else "Unknown"
 
-# -------------------------------------------------
-# STEP 2 — Keyword-based field extraction
-# -------------------------------------------------
-def extract_field(text, field_keywords):
-    for keyword in field_keywords:
-        pattern = rf"{keyword}[:\-\s₹]*([\d,]+(?:\.\d{{2}})?|\d{{1,2}}\s?\w+\s?\d{{4}})"
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    return None
+def detect_card_variant(text):
+    match = process.extractOne(text, CARD_VARIANTS, scorer=fuzz.partial_ratio)
+    if match and match[1] >= 80:
+        return match[0]
+    return "Not found"
 
+def last4_from_text(text):
+    m = re.search(r'(?:\b|[^0-9])(?:x{0,4}[- ]?){0,3}(\d{4})\b', text, re.IGNORECASE)
+    return m.group(1) if m else "Not found"
 
-# -------------------------------------------------
-# STEP 3 — Extract statement-level fields
-# -------------------------------------------------
-def extract_data_points(text):
-    data = {}
+# -------------------------
+# transaction extractor
+# -------------------------
+def extract_transactions(pdf_path):
+    txns = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for p_idx, page in enumerate(pdf.pages, start=1):
+            tables = page.extract_tables()
+            if not tables:
+                continue
+            for table in tables:
+                if len(table) < 2:
+                    continue
+                header = [str(h).strip().lower() if h else "" for h in table[0]]
+                if any("date" in h for h in header) and (any("amount" in h for h in header) or any("debit" in h for h in header) or any("credit" in h for h in header)):
+                    try:
+                        date_idx = next(i for i,h in enumerate(header) if "date" in h)
+                        amount_idx = next((i for i,h in enumerate(header[::-1]) if "amount" in h or "inr" in h or "rs" in h), None)
+                        if amount_idx is not None:
+                            amount_idx = len(header) - 1 - amount_idx
+                        desc_idx = None
+                        for i in range(date_idx+1, (amount_idx if amount_idx else len(header))):
+                            if header[i] and ("desc" in header[i] or "particu" in header[i] or "merchant" in header[i] or "remarks" in header[i]):
+                                desc_idx = i
+                                break
+                        if desc_idx is None:
+                            desc_idx = date_idx + 1 if date_idx + 1 < len(header) else None
+                    except StopIteration:
+                        date_idx = 0; desc_idx = 1; amount_idx = len(header) - 1
 
-    fields = {
-        "Payment Due Date": ["payment due date", "due date"],
-        "Total Amount Due": ["total amount due", "closing balance", "amount payable"],
-        "Minimum Amount Due": ["minimum amount due"],
-        "Credit Limit": ["credit limit", "total credit limit"],
-        "Available Credit": ["available credit", "remaining credit"],
-        "Opening Balance": ["opening balance", "previous balance"]
+                    for row in table[1:]:
+                        row = [(c if c is not None else "").strip() for c in row]
+                        if amount_idx is None or amount_idx >= len(row):
+                            values = [c for c in row if re.search(r'\d', str(c))]
+                            if not values:
+                                continue
+                            amount_cell = values[-1]
+                        else:
+                            amount_cell = row[amount_idx]
+                        am = re.search(r"-?\d+[,0-9]*\.\d{1,2}|-?\d+", amount_cell.replace("₹", "").replace(",", "")) if amount_cell else None
+                        if not am:
+                            continue
+                        amount = float(am.group(0).replace(",", ""))
+                        date = row[date_idx] if date_idx < len(row) else ""
+                        desc = row[desc_idx] if desc_idx is not None and desc_idx < len(row) else ""
+                        txns.append({"Date": date, "Description": desc, "Amount": amount, "Page": p_idx})
+
+    if txns:
+        os.makedirs("outputs/csv", exist_ok=True)
+        pd.DataFrame(txns).to_csv(os.path.join("outputs/csv", "transactions.csv"), index=False)
+    return txns
+
+# -------------------------
+# Generic parser helper
+# -------------------------
+def parse_common_fields(block):
+    result = {}
+    result["billing_cycle"] = re.search(r"Statement\s*Period.*?(\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}.*?(?:to|-|–).*?\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4})", block, re.IGNORECASE)
+    result["billing_cycle"] = result["billing_cycle"].group(1).strip() if result["billing_cycle"] else "Not found"
+
+    for field, key in [
+        (r"Statement\s*Date", "statement_date"),
+        (r"Payment\s*Due\s*Date", "payment_due_date"),
+        (r"Total\s*Amount\s*Due", "total_balance"),
+        (r"Minimum\s*Amount\s*Due", "minimum_due"),
+        (r"Credit\s*Limit", "credit_limit"),
+        (r"Available\s*Credit\s*Limit", "available_credit_limit"),
+        (r"Cash\s*Limit", "cash_limit"),
+        (r"Available\s*Cash\s*Limit", "available_cash_limit"),
+    ]:
+        m = re.search(field + r"[^\d₹]*₹?\s*([\d,]+\.\d{2}|\d{1,3}(?:,\d{3})*)", block, re.IGNORECASE)
+        result[key] = m.group(1).replace(",", "") if m else "Not found"
+
+    return result
+
+# -------------------------
+# Bank-specific parsers
+# -------------------------
+def parse_axis(text, pdf_path):
+    res = {"card_variant": detect_card_variant(text), "last4": last4_from_text(text)}
+    summary_block = re.search(r"Statement\s*Period.*?Available\s*Cash\s*Limit.*?Transaction\s*Details", text, re.DOTALL | re.IGNORECASE)
+    block = " ".join(summary_block.group(0).split()) if summary_block else text
+    res.update(parse_common_fields(block))
+    txns = extract_transactions(pdf_path)
+    return res, txns
+
+# Reuse common ones for other banks (omitted for brevity)
+parse_hdfc = parse_icici = parse_sbi = parse_bob = parse_axis
+
+# -------------------------
+# main driver
+# -------------------------
+def main(pdf_path):
+    if not os.path.exists(pdf_path):
+        print("File not found:", pdf_path); return
+
+    text = load_text(pdf_path)
+    bank = detect_bank(text)
+    print("Detected bank:", bank)
+
+    parsers = {
+        "HDFC Bank": parse_hdfc,
+        "ICICI Bank": parse_icici,
+        "State Bank of India": parse_sbi,
+        "Bank of Baroda": parse_bob,
+        "Axis Bank": parse_axis
     }
 
-    for field, keywords in fields.items():
-        data[field] = extract_field(text, keywords)
+    parse_func = parsers.get(bank)
+    parsed, txns = parse_func(text, pdf_path) if parse_func else ({}, [])
 
-    # --- Add cardholder details ---
-    name_match = re.search(r"(?:name|cardholder name)[:\-\s]+([a-z\s]+)", text, re.IGNORECASE)
-    pincode_match = re.search(r"\b\d{6}\b", text)
-    if name_match:
-        data["Cardholder Name"] = name_match.group(1).strip().title()
-    if pincode_match:
-        data["Pincode"] = pincode_match.group(0)
+    summary = {"bank_detected": bank, **parsed, "transactions_extracted": len(txns)}
 
-    return data
+    os.makedirs("outputs/json", exist_ok=True)
+    out_json = os.path.join("outputs/json", os.path.splitext(os.path.basename(pdf_path))[0] + "_summary.json")
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=4, ensure_ascii=False)
 
+    print("\nSummary Preview:")
+    for k,v in summary.items():
+        print(f"  {k}: {v}")
 
-# -------------------------------------------------
-# STEP 4 — Extract transaction table (date, desc, amount)
-# -------------------------------------------------
-def extract_transaction_amounts(tables):
-    debit_total, credit_total = 0.0, 0.0
-    transactions = []
-
-    for page_idx, df in enumerate(tables):
-        if df.empty or df.shape[1] < 2:
-            continue
-
-        headers = " ".join(df.iloc[0].astype(str).str.lower())
-        if "amount" in headers and ("date" in headers or "description" in headers):
-            for i, row in df.iterrows():
-                values = [str(v).strip() for v in row if pd.notna(v)]
-                if len(values) < 2:
-                    continue
-
-                date = str(values[0])
-                desc = str(values[1])
-                amount_str = str(values[-1]).replace(",", "").replace("₹", "")
-
-                try:
-                    amt = float(re.findall(r"[-+]?\d*\.\d+|\d+", amount_str)[0])
-                except:
-                    continue
-
-                # Determine type
-                tx_type = "Debit"
-                if re.search(r"(credit|refund|payment|received)", " ".join(values).lower()):
-                    tx_type = "Credit"
-
-                transactions.append({
-                    "Date": date,
-                    "Description": desc,
-                    "Amount": amt,
-                    "Type": tx_type,
-                    "Table_Index": page_idx
-                })
-
-                if tx_type == "Debit":
-                    debit_total += amt
-                else:
-                    credit_total += amt
-
-    return debit_total, credit_total, transactions
-
-
-# -------------------------------------------------
-# STEP 5 — Validation logic
-# -------------------------------------------------
-def validate_statement(data, debit_total, credit_total):
-    validations = {}
-    try:
-        total_due = float(data.get("Total Amount Due", "0").replace(",", ""))
-        credit_limit = float(data.get("Credit Limit", "0").replace(",", ""))
-        available_credit = float(data.get("Available Credit", "0").replace(",", ""))
-        opening_balance = float(data.get("Opening Balance", "0").replace(",", "")) if data.get("Opening Balance") else 0.0
-
-        # Rule 1 — Available Credit = Credit Limit - Outstanding Balance
-        validations["Available Credit Validation"] = abs((credit_limit - total_due) - available_credit) < 1
-
-        # Rule 2 — Closing Balance = Opening + Credit - Debit
-        closing_calc = opening_balance + credit_total - debit_total
-        validations["Closing Balance Validation"] = abs(closing_calc - total_due) < 1_000
-
-    except Exception as e:
-        validations["Error"] = str(e)
-
-    return validations
-
-
-# -------------------------------------------------
-# STEP 6 — Minimum Due Table
-# -------------------------------------------------
-def build_min_due_summary(data):
-    try:
-        total_due = float(data.get("Total Amount Due", "0").replace(",", ""))
-        min_due_pdf = float(data.get("Minimum Amount Due", "0").replace(",", ""))
-    except:
-        total_due, min_due_pdf = 0, 0
-
-    est_min_due = round(total_due * 0.05, 2)
-    df = pd.DataFrame([{
-        "Total Due": total_due,
-        "Minimum Due (from PDF)": min_due_pdf,
-        "Expected Min Due (5%)": est_min_due,
-        "Deviation": round(abs(min_due_pdf - est_min_due), 2)
-    }])
-    df.to_csv("minimum_due_summary.csv", index=False)
-    return df
-
-
-# -------------------------------------------------
-# STEP 7 — Main Runner
-# -------------------------------------------------
-def main(pdf_path):
-    text, tables = extract_text_and_tables(pdf_path)
-    data = extract_data_points(text)
-    debit_total, credit_total, transactions = extract_transaction_amounts(tables)
-    validations = validate_statement(data, debit_total, credit_total)
-
-    # Write outputs
-    pd.DataFrame(transactions).to_csv("transactions.csv", index=False)
-    build_min_due_summary(data)
-
-    data["Total Debit Amount"] = f"{debit_total:,.2f}"
-    data["Total Credit Amount"] = f"{credit_total:,.2f}"
-
-    print("\n📄 Extracted Fields:")
-    print(json.dumps(data, indent=4))
-
-    print("\n🧾 Validation Results:")
-    for k, v in validations.items():
-        print(f"{k}: {'✅ Pass' if v else '⚠️ Fail'}")
-
-    pd.DataFrame([data]).to_csv("statement_summary.csv", index=False)
-
+    if txns:
+        print("\nTransaction sample (first 10 rows):")
+        df = pd.DataFrame(txns)
+        print(tabulate(df.head(10), headers="keys", tablefmt="grid", showindex=False))
+        print("\nSaved CSV to outputs/csv and JSON to outputs/json")
+    else:
+        print("\nNo transactions extracted (table structure may be different).")
 
 if __name__ == "__main__":
-    pdf_file = "data/axisBank_statement.pdf"  # change this to your test file path
-    main(pdf_file)
+    pdf_path = input("Enter path to statement PDF: ").strip()
+    main(pdf_path)
