@@ -67,51 +67,69 @@ A robust Python-based tool to extract structured data from credit card statement
 
 📁 Project Structure
 --------------------
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   .├── parser.py├── outputs/│   ├── csv/│   │   └── transactions.csv│   └── json/│       └── _summary.json└── README.md   `
-
+```plaintext
+.
+├── parser.py
+├── outputs/
+│   ├── csv/
+│   │   └── transactions.csv
+│   └── json/
+│       └── <statement_name>_summary.json
+└── README.md
+```
 ⚙️ Installation
 ---------------
 
 ### 1\. Clone the repository
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   git clone https://github.com/your-username/credit-card-parser.gitcd credit-card-parser   `
-
+```bash
+git clone https://github.com/your-username/credit-card-parser.git
+cd credit-card-parser
+```
 ### 2\. Install dependencies
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   pip install pdfplumber rapidfuzz pandas tabulate   `
-
+```bash
+pip install pdfplumber rapidfuzz pandas tabulate
+```
 ▶️ Usage
 --------
 
 Run the parser:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python parser.py   `
-
+```bash
+python parser.py
+```
 Enter the path to your PDF when prompted:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   Enter path to statement PDF: sample_statements/icici_statement.pdf   `
-
+```bash
+Enter path to statement PDF: sample_statements/icici_statement.pdf
+```
 📤 Output
 ---------
 
 ### ✅ JSON Summary
 
 Stored in:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   outputs/json/_summary.json   `
-
+```bash
+outputs/json/<filename>_summary.json
+```
 Example:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   {    "bank_detected": "ICICI Bank",    "card_variant": "Amazon Pay ICICI Bank Credit Card",    "last4": "3009",    "billing_cycle": "21 Jun 2025 to 20 Jul 2025",    "payment_due_date": "07 Aug 2025",    "total_balance": "12530.00",    "transactions_extracted": 5}   `
-
+```bash
+{
+    "bank_detected": "ICICI Bank",
+    "card_variant": "Amazon Pay ICICI Bank Credit Card",
+    "last4": "3009",
+    "billing_cycle": "21 Jun 2025 to 20 Jul 2025",
+    "payment_due_date": "07 Aug 2025",
+    "total_balance": "12530.00",
+    "transactions_extracted": 5
+}
+```
 ### 📊 Transactions CSV
 
 Stored in:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   outputs/csv/transactions.csv   `
-
-DateDescriptionAmountPage21 Jun 2025Sample Merchant 1150.751
+```bash
+outputs/csv/transactions.csv
+```
+| Date        | Description       | Amount | Page |
+| ----------- | ----------------- | ------ | ---- |
+| 21 Jun 2025 | Sample Merchant 1 | 150.75 | 1    |
 
 🧠 How It Works
 ---------------
