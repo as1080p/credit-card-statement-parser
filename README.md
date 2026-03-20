@@ -198,28 +198,4 @@ You can test using:
 *   🌐 Web UI for upload & parsing
     
 *   📦 Batch processing
-    
-
-🤝 Contributing
----------------
-
-Contributions are welcome!
-
-1.  Fork the repo
-    
-2.  Create a new branch
-    
-3.  Commit your changes
-    
-4.  Submit a PR
-    
-
-📜 License
-----------
-
-This project is for educational and personal use.(Add a license here if you plan to open-source it publicly)
-
-👩‍💻 Author
-------------
-
-Built with caffeine and chaos by **Anagha** ⚡(aka the "PDF whisperer" who made banks spill their secrets 😌)
+  
